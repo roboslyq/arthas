@@ -85,6 +85,11 @@ public class Arthas {
         return configure;
     }
 
+    /**
+     * 将arthas-agent attach到目标JVM
+     * @param configure
+     * @throws Exception
+     */
     private void attachAgent(Configure configure) throws Exception {
         VirtualMachineDescriptor virtualMachineDescriptor = null;
         for (VirtualMachineDescriptor descriptor : VirtualMachine.list()) {
@@ -94,6 +99,9 @@ public class Arthas {
                 break;
             }
         }
+        /*
+         * virtualMachine#attach到目标进程，并加载arthas-agent.jar作为agent jar包。
+         */
         VirtualMachine virtualMachine = null;
         try {
             if (null == virtualMachineDescriptor) { // 使用 attach(String pid) 这种方式
@@ -119,6 +127,23 @@ public class Arthas {
             configure.setArthasAgent(encodeArg(arthasAgentPath));
             configure.setArthasCore(encodeArg(configure.getArthasCore()));
             try {
+                // 通过agentmain方式（在进程启动之后attach上去）加载arthas-agent到目标JVM
+                // 当然正常使用也可以通过premain方式（在目标进程启动之前，通过-agent参数静态指定）加载
+                /*
+                 *其中arthas-agent.jar通过pom指定以下build参数
+                 *          <archive>
+                                <manifestEntries>
+                                    <Premain-Class>com.taobao.arthas.agent334.AgentBootstrap</Premain-Class>
+                                    <Agent-Class>com.taobao.arthas.agent334.AgentBootstrap</Agent-Class>
+                                    <Can-Redefine-Classes>true</Can-Redefine-Classes>
+                                    <Can-Retransform-Classes>true</Can-Retransform-Classes>
+                                    <Specification-Title>${project.name}</Specification-Title>
+                                    <Specification-Version>${project.version}</Specification-Version>
+                                    <Implementation-Title>${project.name}</Implementation-Title>
+                                    <Implementation-Version>${project.version}</Implementation-Version>
+                                </manifestEntries>
+                            </archive>
+                 */
                 virtualMachine.loadAgent(arthasAgentPath,
                         configure.getArthasCore() + ";" + configure.toString());
             } catch (IOException e) {

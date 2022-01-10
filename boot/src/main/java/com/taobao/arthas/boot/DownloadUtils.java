@@ -78,6 +78,14 @@ public class DownloadUtils {
         return repoUrl;
     }
 
+    /**
+     * 下载arthas压缩安装包到用户目录
+     * @param repoMirror
+     * @param http
+     * @param arthasVersion
+     * @param savePath
+     * @throws IOException
+     */
     public static void downArthasPackaging(String repoMirror, boolean http, String arthasVersion, String savePath)
             throws IOException {
         String repoUrl = getRepoUrl(ARTHAS_DOWNLOAD_URL, http);
@@ -92,6 +100,7 @@ public class DownloadUtils {
         AnsiLog.info("Start download arthas from remote server: " + remoteDownloadUrl);
         saveUrl(tempFile.getAbsolutePath(), remoteDownloadUrl, true);
         AnsiLog.info("Download arthas success.");
+        // 下载完成后，解压安装包
         IOUtils.unzip(tempFile.getAbsolutePath(), unzipDir.getAbsolutePath());
     }
 

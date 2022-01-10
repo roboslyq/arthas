@@ -360,7 +360,7 @@ public class Bootstrap {
                             JavaVersionUtils.javaVersionStr());
         }
 
-        // check telnet/http port
+        // check telnet/http port 检查 telnet/http端口是否已经被占用
         long telnetPortPid = -1;
         long httpPortPid = -1;
         if (bootstrap.getTelnetPortOrDefault() > 0) {
@@ -375,11 +375,12 @@ public class Bootstrap {
                 AnsiLog.info("Process {} already using port {}", httpPortPid, bootstrap.getHttpPortOrDefault());
             }
         }
-
+        // 当前arthas 获取进程ID
         long pid = bootstrap.getPid();
         // select pid
         if (pid < 0) {
             try {
+                // 用户选择进程
                 pid = ProcessUtils.select(bootstrap.isVerbose(), telnetPortPid, bootstrap.getSelect());
             } catch (InputMismatchException e) {
                 System.out.println("Please input an integer to select pid.");
@@ -390,7 +391,7 @@ public class Bootstrap {
                 System.exit(1);
             }
         }
-
+        // 检查目标端口是否已经被占用
         checkTelnetPortPid(bootstrap, telnetPortPid, pid);
 
         if (httpPortPid > 0 && pid != httpPortPid) {
@@ -402,18 +403,18 @@ public class Bootstrap {
             System.exit(1);
         }
 
-        // find arthas home
+        // find arthas home 查找arthas家目录
         File arthasHomeDir = null;
         if (bootstrap.getArthasHome() != null) {
             verifyArthasHome(bootstrap.getArthasHome());
             arthasHomeDir = new File(bootstrap.getArthasHome());
         }
         if (arthasHomeDir == null && bootstrap.getUseVersion() != null) {
-            // try to find from ~/.arthas/lib
+            // try to find from ~/.arthas/lib 如果没有定制，默认从 ~/.arthas/lib进行查找
             File specialVersionDir = new File(System.getProperty("user.home"), ".arthas" + File.separator + "lib"
                             + File.separator + bootstrap.getUseVersion() + File.separator + "arthas");
             if (!specialVersionDir.exists()) {
-                // try to download arthas from remote server.
+                // try to download arthas from remote server. 如果arthas相关文件不存在，则从远程服务下载
                 DownloadUtils.downArthasPackaging(bootstrap.getRepoMirror(), bootstrap.isuseHttp(),
                                 bootstrap.getUseVersion(), ARTHAS_LIB_DIR.getAbsolutePath());
             }
@@ -505,7 +506,18 @@ public class Bootstrap {
             telnetPortPid = findProcessByTelnetClient(arthasHomeDir.getAbsolutePath(), bootstrap.getTelnetPortOrDefault());
             checkTelnetPortPid(bootstrap, telnetPortPid, pid);
 
-            // start arthas-core.jar
+            // start arthas-core.jar 开始arthas-core.jar，开始拼接attach参数
+            /*
+             * ${JAVA_HOME}"/bin/java \
+             *      ${opts}  \
+             *      -jar "${arthas_lib_dir}/arthas-core.jar" \
+             *          -pid ${TARGET_PID} \             要注入的进程id
+             *          -target-ip ${TARGET_IP} \       服务器ip地址
+             *          -telnet-port ${TELNET_PORT} \  服务器telnet服务端口号
+             *          -http-port ${HTTP_PORT} \      websocket服务端口号
+             *          -core "${arthas_lib_dir}/arthas-core.jar" \      arthas-core目录
+             *          -agent "${arthas_lib_dir}/arthas-agent.jar"    arthas-agent目录
+             */
             List<String> attachArgs = new ArrayList<String>();
             attachArgs.add("-jar");
             attachArgs.add(new File(arthasHomeDir, "arthas-core.jar").getAbsolutePath());
@@ -569,6 +581,7 @@ public class Bootstrap {
 
             AnsiLog.info("Try to attach process " + pid);
             AnsiLog.debug("Start arthas-core.jar args: " + attachArgs);
+            // 开始调用 arthas-core.jar处理，启动新的进程
             ProcessUtils.startArthasCore(pid, attachArgs);
 
             AnsiLog.info("Attach process {} success.", pid);
@@ -578,7 +591,8 @@ public class Bootstrap {
             System.exit(0);
         }
 
-        // start java telnet client
+        // start java telnet client 当arthas-core启动成功后(即将arthas-agent attach到目标JVM后，当前arthas-boot.jar所在进程启动arthas-client。
+        // 用于用户输入arthas相关命令)
         // find arthas-client.jar
         URLClassLoader classLoader = new URLClassLoader(
                         new URL[] { new File(arthasHomeDir, "arthas-client.jar").toURI().toURL() });
@@ -729,6 +743,10 @@ public class Bootstrap {
         return names;
     }
 
+    /**
+     * 检查下载解压后是否有关键的三个文件："arthas-core.jar", "arthas-agent.jar", "arthas-spy.jar"
+     * @param arthasHome
+     */
     private static void verifyArthasHome(String arthasHome) {
         File home = new File(arthasHome);
         if (home.isDirectory()) {

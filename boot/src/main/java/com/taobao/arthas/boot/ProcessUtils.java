@@ -55,6 +55,7 @@ public class ProcessUtils {
     public static long select(boolean v, long telnetPortPid, String select) throws InputMismatchException {
         Map<Long, String> processMap = listProcessByJps(v);
         // Put the port that is already listening at the first
+        // 默认把已经监听的端口所有的进程放在最前面
         if (telnetPortPid > 0 && processMap.containsKey(telnetPortPid)) {
             String telnetPortProcess = processMap.get(telnetPortPid);
             processMap.remove(telnetPortPid);
@@ -83,7 +84,7 @@ public class ProcessUtils {
 				return matchedPid;
 			}
 		}
-
+        // 工具类，控制台打印相关信息
         AnsiLog.info("Found existing java process, please choose one and input the serial number of the process, eg : 1. Then hit ENTER.");
         // print list
         int count = 1;
@@ -97,6 +98,7 @@ public class ProcessUtils {
         }
 
         // read choice
+        // 读取用户的选择进程
         String line = new Scanner(System.in).nextLine();
         if (line.trim().isEmpty()) {
             // get the first process id
@@ -255,6 +257,7 @@ public class ProcessUtils {
         }
 
         command.addAll(attachArgs);
+        // 以下命令就是执行arthas-core.jar。而arthas-core.jar通过pom.xml打包时build插件，指定mainClass为 com.taobao.arthas.core.Arthas
         // "${JAVA_HOME}"/bin/java \
         // ${opts} \
         // -jar "${arthas_lib_dir}/arthas-core.jar" \
@@ -264,9 +267,10 @@ public class ProcessUtils {
         // -http-port ${HTTP_PORT} \
         // -core "${arthas_lib_dir}/arthas-core.jar" \
         // -agent "${arthas_lib_dir}/arthas-agent.jar"
-
+        // 命令执行器
         ProcessBuilder pb = new ProcessBuilder(command);
         try {
+            // 执行命令
             final Process proc = pb.start();
             Thread redirectStdout = new Thread(new Runnable() {
                 @Override
