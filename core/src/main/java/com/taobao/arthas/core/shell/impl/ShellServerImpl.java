@@ -116,6 +116,11 @@ public class ShellServerImpl extends ShellServer {
         }
     }
 
+    /**
+     * 启动服务
+     * @param listenHandler handler for getting notified when service is started
+     * @return
+     */
     @Override
     public ShellServer listen(final Handler<Future<Void>> listenHandler) {
         final List<TermServer> toStart;
@@ -134,6 +139,9 @@ public class ShellServerImpl extends ShellServer {
         Handler<Future<TermServer>> handler = new TermServerListenHandler(this, listenHandler, toStart);
         for (TermServer termServer : toStart) {
             termServer.termHandler(new TermServerTermHandler(this));
+            /*
+             * 启动服务HttpTelnetTermServer   HttpTermServer  TelnetTermServer
+             */
             termServer.listen(handler);
         }
         return this;

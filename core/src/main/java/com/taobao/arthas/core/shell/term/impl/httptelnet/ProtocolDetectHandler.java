@@ -67,6 +67,12 @@ public class ProtocolDetectHandler extends ChannelInboundHandlerAdapter {
         }, 1000, TimeUnit.MILLISECONDS);
     }
 
+    /**
+     * 数据接收
+     * @param ctx
+     * @param msg
+     * @throws Exception
+     */
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
         ByteBuf in = (ByteBuf) msg;
@@ -77,7 +83,8 @@ public class ProtocolDetectHandler extends ChannelInboundHandlerAdapter {
         if (detectTelnetFuture != null && detectTelnetFuture.isCancellable()) {
             detectTelnetFuture.cancel(false);
         }
-
+        // 取报文中的前三字节，因为arthas-client的http发送请示全部为GET请示
+        // 而GET请求的特点就是前三位是字符串GET，所以可以通过前3位是否等于GET来判断是http请求还是telnet请求
         byte[] bytes = new byte[3];
         in.getBytes(0, bytes);
         String httpHeader = new String(bytes);
@@ -85,10 +92,11 @@ public class ProtocolDetectHandler extends ChannelInboundHandlerAdapter {
         ChannelPipeline pipeline = ctx.pipeline();
         if (!"GET".equalsIgnoreCase(httpHeader)) { // telnet
             channelGroup.add(ctx.channel());
+            // 如果是telnet请求，则使用TelnetChannelHandler来处理
             TelnetChannelHandler handler = new TelnetChannelHandler(handlerFactory);
             pipeline.addLast(handler);
             ctx.fireChannelActive(); // trigger TelnetChannelHandler init
-        } else {
+        } else {// 否则使用http请求来处理
             pipeline.addLast(new HttpServerCodec());
             pipeline.addLast(new ChunkedWriteHandler());
             pipeline.addLast(new HttpObjectAggregator(ArthasConstants.MAX_HTTP_CONTENT_LENGTH));

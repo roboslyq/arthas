@@ -309,8 +309,9 @@ public class Bootstrap {
     }
 
     public static void main(String[] args) throws ParserConfigurationException, SAXException, IOException,
-                    ClassNotFoundException, NoSuchMethodException, SecurityException, IllegalAccessException,
-                    IllegalArgumentException, InvocationTargetException {
+            ClassNotFoundException, NoSuchMethodException, SecurityException, IllegalAccessException,
+            IllegalArgumentException, InvocationTargetException {
+        //1-获取包路径打印版本信息
         Package bootstrapPackage = Bootstrap.class.getPackage();
         if (bootstrapPackage != null) {
             String arthasBootVersion = bootstrapPackage.getImplementationVersion();
@@ -320,7 +321,7 @@ public class Bootstrap {
         }
 
         Bootstrap bootstrap = new Bootstrap();
-
+        //2-CLI 是alibaba基于vert.x的Command Line Interface API进行封装的。
         CLI cli = CLIConfigurator.define(Bootstrap.class);
         CommandLine commandLine = cli.parse(Arrays.asList(args));
 
@@ -339,7 +340,7 @@ public class Bootstrap {
             System.out.println(usage(cli));
             System.exit(0);
         }
-
+        // 3-设置文件下载的路径
         if (bootstrap.getRepoMirror() == null || bootstrap.getRepoMirror().trim().isEmpty()) {
             bootstrap.setRepoMirror("center");
             // if timezone is +0800, default repo mirror is aliyun
@@ -348,7 +349,7 @@ public class Bootstrap {
             }
         }
         AnsiLog.debug("Repo mirror:" + bootstrap.getRepoMirror());
-
+        // 检查Java版本
         if (bootstrap.isVersions()) {
             System.out.println(UsageRender.render(listVersions()));
             System.exit(0);
@@ -357,10 +358,10 @@ public class Bootstrap {
         if (JavaVersionUtils.isJava6() || JavaVersionUtils.isJava7()) {
             bootstrap.setuseHttp(true);
             AnsiLog.debug("Java version is {}, only support http, set useHttp to true.",
-                            JavaVersionUtils.javaVersionStr());
+                    JavaVersionUtils.javaVersionStr());
         }
 
-        // check telnet/http port 检查 telnet/http端口是否已经被占用
+        // 4-check telnet/http port 检查 telnet/http端口是否已经在使用
         long telnetPortPid = -1;
         long httpPortPid = -1;
         if (bootstrap.getTelnetPortOrDefault() > 0) {
@@ -391,19 +392,19 @@ public class Bootstrap {
                 System.exit(1);
             }
         }
-        // 检查目标端口是否已经被占用
+        // 检查目标端口是否已经使用
         checkTelnetPortPid(bootstrap, telnetPortPid, pid);
-
+        // 如果已经在使用并且使用的进程不是当前进程，则抛出异常
         if (httpPortPid > 0 && pid != httpPortPid) {
             AnsiLog.error("Target process {} is not the process using port {}, you will connect to an unexpected process.",
-                            pid, bootstrap.getHttpPortOrDefault());
+                    pid, bootstrap.getHttpPortOrDefault());
             AnsiLog.error("1. Try to restart arthas-boot, select process {}, shutdown it first with running the 'stop' command.",
-                            httpPortPid);
+                    httpPortPid);
             AnsiLog.error("2. Or try to use different http port, for example: java -jar arthas-boot.jar --telnet-port 9998 --http-port 9999", httpPortPid);
             System.exit(1);
         }
 
-        // find arthas home 查找arthas家目录
+        // 5-find arthas home 查找arthas家目录
         File arthasHomeDir = null;
         if (bootstrap.getArthasHome() != null) {
             verifyArthasHome(bootstrap.getArthasHome());
@@ -412,11 +413,11 @@ public class Bootstrap {
         if (arthasHomeDir == null && bootstrap.getUseVersion() != null) {
             // try to find from ~/.arthas/lib 如果没有定制，默认从 ~/.arthas/lib进行查找
             File specialVersionDir = new File(System.getProperty("user.home"), ".arthas" + File.separator + "lib"
-                            + File.separator + bootstrap.getUseVersion() + File.separator + "arthas");
+                    + File.separator + bootstrap.getUseVersion() + File.separator + "arthas");
             if (!specialVersionDir.exists()) {
                 // try to download arthas from remote server. 如果arthas相关文件不存在，则从远程服务下载
                 DownloadUtils.downArthasPackaging(bootstrap.getRepoMirror(), bootstrap.isuseHttp(),
-                                bootstrap.getUseVersion(), ARTHAS_LIB_DIR.getAbsolutePath());
+                        bootstrap.getUseVersion(), ARTHAS_LIB_DIR.getAbsolutePath());
             }
             verifyArthasHome(specialVersionDir.getAbsolutePath());
             arthasHomeDir = specialVersionDir;
@@ -479,7 +480,7 @@ public class Bootstrap {
                 if (remoteLastestVersion != null) {
                     if (localLastestVersion.compareTo(remoteLastestVersion) < 0) {
                         AnsiLog.info("local lastest version: {}, remote lastest version: {}, try to download from remote.",
-                                        localLastestVersion, remoteLastestVersion);
+                                localLastestVersion, remoteLastestVersion);
                         needDownload = true;
                     }
                 }
@@ -487,7 +488,7 @@ public class Bootstrap {
             if (needDownload) {
                 // try to download arthas from remote server.
                 DownloadUtils.downArthasPackaging(bootstrap.getRepoMirror(), bootstrap.isuseHttp(),
-                                remoteLastestVersion, ARTHAS_LIB_DIR.getAbsolutePath());
+                        remoteLastestVersion, ARTHAS_LIB_DIR.getAbsolutePath());
                 localLastestVersion = remoteLastestVersion;
             }
 
@@ -506,7 +507,7 @@ public class Bootstrap {
             telnetPortPid = findProcessByTelnetClient(arthasHomeDir.getAbsolutePath(), bootstrap.getTelnetPortOrDefault());
             checkTelnetPortPid(bootstrap, telnetPortPid, pid);
 
-            // start arthas-core.jar 开始arthas-core.jar，开始拼接attach参数
+            // 6- start arthas-core.jar 开始arthas-core.jar，开始拼接attach参数
             /*
              * ${JAVA_HOME}"/bin/java \
              *      ${opts}  \
@@ -581,7 +582,7 @@ public class Bootstrap {
 
             AnsiLog.info("Try to attach process " + pid);
             AnsiLog.debug("Start arthas-core.jar args: " + attachArgs);
-            // 开始调用 arthas-core.jar处理，启动新的进程
+            // 开始调用 arthas-core.jar处理，启动新的进程（启动arthas 服务端，即attach到目标进程JVM端）
             ProcessUtils.startArthasCore(pid, attachArgs);
 
             AnsiLog.info("Attach process {} success.", pid);
@@ -591,11 +592,11 @@ public class Bootstrap {
             System.exit(0);
         }
 
-        // start java telnet client 当arthas-core启动成功后(即将arthas-agent attach到目标JVM后，当前arthas-boot.jar所在进程启动arthas-client。
+        // 7-start java telnet client 当arthas-core启动成功后(即将arthas-agent attach到目标JVM后，当前arthas-boot.jar所在进程启动arthas-client。
         // 用于用户输入arthas相关命令)
         // find arthas-client.jar
         URLClassLoader classLoader = new URLClassLoader(
-                        new URL[] { new File(arthasHomeDir, "arthas-client.jar").toURI().toURL() });
+                new URL[] { new File(arthasHomeDir, "arthas-client.jar").toURI().toURL() });
         Class<?> telnetConsoleClas = classLoader.loadClass("com.taobao.arthas.client.TelnetConsole");
         Method mainMethod = telnetConsoleClas.getMethod("main", String[].class);
         List<String> telnetArgs = new ArrayList<String>();
@@ -626,6 +627,7 @@ public class Bootstrap {
 
         // fix https://github.com/alibaba/arthas/issues/833
         Thread.currentThread().setContextClassLoader(classLoader);
+        // 通过反射的方式来启动字符客户端,等待用户输入指令.
         mainMethod.invoke(null, new Object[] { telnetArgs.toArray(new String[0]) });
     }
 

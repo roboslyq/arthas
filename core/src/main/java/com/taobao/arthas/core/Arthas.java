@@ -113,6 +113,7 @@ public class Arthas {
             Properties targetSystemProperties = virtualMachine.getSystemProperties();
             String targetJavaVersion = JavaVersionUtils.javaVersionStr(targetSystemProperties);
             String currentJavaVersion = JavaVersionUtils.javaVersionStr();
+            // 检查目标java版本和当前进程的java版本，如果不相等提发出警告，可能出现异常
             if (targetJavaVersion != null && currentJavaVersion != null) {
                 if (!targetJavaVersion.equals(currentJavaVersion)) {
                     AnsiLog.warn("Current VM java version: {} do not match target VM java version: {}, attach may fail.",

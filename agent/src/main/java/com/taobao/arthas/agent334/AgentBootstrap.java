@@ -60,10 +60,20 @@ public class AgentBootstrap {
      */
     private static volatile ClassLoader arthasClassLoader;
 
+    /**
+     * 使用premain方式
+     * @param args
+     * @param inst
+     */
     public static void premain(String args, Instrumentation inst) {
         main(args, inst);
     }
 
+    /**
+     * 使用agent main方式
+     * @param args
+     * @param inst
+     */
     public static void agentmain(String args, Instrumentation inst) {
         main(args, inst);
     }
@@ -87,6 +97,11 @@ public class AgentBootstrap {
         return arthasClassLoader;
     }
 
+    /**
+     * main方法中对于arthas-spy(简单理解为勾子类,类似于spring aop的前置方法,后置方法)进行了加载.
+     * @param args
+     * @param inst
+     */
     private static synchronized void main(String args, final Instrumentation inst) {
         // 尝试判断arthas是否已在运行，如果是的话，直接就退出
         try {

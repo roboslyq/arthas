@@ -127,12 +127,18 @@ public class ArthasBootstrap {
     private HttpSessionManager httpSessionManager;
     private SecurityAuthenticator securityAuthenticator;
 
+    /**
+     * artahs-server启动的核心方法
+     * @param instrumentation
+     * @param args
+     * @throws Throwable
+     */
     private ArthasBootstrap(Instrumentation instrumentation, Map<String, String> args) throws Throwable {
         this.instrumentation = instrumentation;
 
         initFastjson();
 
-        // 1. initSpy()
+        // 1. initSpy() 初始化Spy
         initSpy();
         // 2. ArthasEnvironment
         initArthasEnvironment(args);
@@ -152,7 +158,7 @@ public class ArthasBootstrap {
         // 5. init beans
         initBeans();
 
-        // 6. start agent server
+        // 6. start agent server （核心流程，在目标JVM中，启动agent服务）
         bind(configure);
 
         executorService = Executors.newScheduledThreadPool(1, new ThreadFactory() {
@@ -342,8 +348,17 @@ public class ArthasBootstrap {
     }
 
     /**
-     * Bootstrap arthas server
+     *  Bootstrap arthas server
+     *异步调用bind()方法,启动服务端,监听端口,和客户端进行通讯.
      *
+     * 1、判断是否配置tuunel-server参数，配置请款下，需要启动tunnelClient对象， 用于将连到对应的tunnelserver
+     * 2、构建Session管理， 认证管理器
+     * 3、初始化支持命令
+     * 4、根据配置情况，需要启动telnet情况下构建HttpTelnetTermServer，
+     *    需要启动http server的时候需要启动HttpTermServer， 配置http-port为-1的情况下，
+     *    配置tunnel-server的情况下个人觉得不需要启动HttpTermServer的。 由于是client主动连接server，不需要对外提供端口的。
+     * 5、 初始化SessionManagerImpl，HttpApiHandler，UserStatUtil对象。
+     * 6、SpyAPI#init ，此处可以理解为什么AgentBootstrap的main 函数中使用SpyAPI类判断是否已经初始化了。
      * @param configure 配置信息
      * @throws IOException 服务器启动失败
      */
@@ -371,7 +386,13 @@ public class ArthasBootstrap {
             configure.setAppName(System.getProperty(ArthasConstants.PROJECT_NAME,
                     System.getProperty(ArthasConstants.SPRING_APPLICATION_NAME, null)));
         }
-
+        /*
+         *TunnelServer的判断
+         * arthas提供了一个tunnel-server的工程。我们启动这个工程后可以统一对外提供一个web界面。
+         * 当arthas启动的时候如果配置该参数时，arthas启动后会主动连接到tunnel-server的连接。
+         * 当在tunnel-server点击连接时会通过创建的TunnelClient的连接发送一个请求。
+         * 收到请求后agent在主动连接到tunnel-server服务上，通过新创建Tunnel进行交互， 从而达到了一个隧道的逻辑。
+         */
         try {
             if (configure.getTunnelServer() != null) {
                 tunnelClient = new TunnelClient();
@@ -396,6 +417,13 @@ public class ArthasBootstrap {
             }
 
             this.httpSessionManager = new HttpSessionManager();
+            // 安全认证
+            /*
+             * username和password的认证方式，我们在启动agent时有–username以及–password的参数，如果配置了这两个参数活着只配置了其中一个参数。我们无论通过telnet连接agent时需要先经过一步输入用户名密码的阶段。
+             * 1、参数同时存在username和password时，使用配置的信息
+             * 2、仅仅存在username时，会随机生成一个32位的密码值，密码值可以通过arthas的日志去获取，查找关键词Using generated security password:
+             * 3、仅仅存在password时，使用arthas做为username
+             */
             this.securityAuthenticator = new SecurityAuthenticatorImpl(configure.getUsername(), configure.getPassword());
 
             shellServer = new ShellServerImpl(options);
@@ -407,6 +435,10 @@ public class ArthasBootstrap {
                     disabledCommands.addAll(Arrays.asList(strings));
                 }
             }
+            /*
+             * 内置命令。无论通过telnet/websocket实现的xterm，最终与arthas server端交互的时候都是输入命令， 自然在server端需要定义出支持的命令列表，
+             * 以及对应命令的处理器定义。 此处就是初始化arthas支持的命令
+             */
             BuiltinCommandPack builtinCommands = new BuiltinCommandPack(disabledCommands);
             List<CommandResolver> resolvers = new ArrayList<CommandResolver>();
             resolvers.add(builtinCommands);
@@ -417,6 +449,10 @@ public class ArthasBootstrap {
             // TODO: discover user provided command resolver
             if (configure.getTelnetPort() != null && configure.getTelnetPort() > 0) {
                 logger().info("try to bind telnet server, host: {}, port: {}.", configure.getIp(), configure.getTelnetPort());
+                /*
+                 * HttpTelnetTermServer， 支持http和telnet的server. 最终在NettyHttpTelnetBootstrap中会使用netty启动一个server，
+                 * 使用ProtocolDetectHandler进行协议的解析检测（此处大家可以详细看看实现逻辑，如果一个port同时http协议和telnet协议的）
+                 */
                 shellServer.registerTermServer(new HttpTelnetTermServer(configure.getIp(), configure.getTelnetPort(),
                         options.getConnectionTimeout(), workerGroup, httpSessionManager));
             } else {
@@ -424,11 +460,19 @@ public class ArthasBootstrap {
             }
             if (configure.getHttpPort() != null && configure.getHttpPort() > 0) {
                 logger().info("try to bind http server, host: {}, port: {}.", configure.getIp(), configure.getHttpPort());
+                /*
+                HttpTermServer            仅支持http类型的term server，最终在NettyWebsocketTtyBootstrap中会使用netty启动server，
+                 使用TtyServerInitializer进行消息的处理，最终与前端交互过程中使用websocket进行与arthas server进行交互
+                 */
                 shellServer.registerTermServer(new HttpTermServer(configure.getIp(), configure.getHttpPort(),
                         options.getConnectionTimeout(), workerGroup, httpSessionManager));
             } else {
                 // listen local address in VM communication
                 if (configure.getTunnelServer() != null) {
+                    /*
+                    TelnetTermServer  仅支持telnet的term server，最终在NettyTelnetBootstrap中会使用netty启动server，
+                     使用TelnetChannelHandler进行消息的处理，现在arthas已经不使用这个server，使用HttpTelnetTermServer代替。
+                     */
                     shellServer.registerTermServer(new HttpTermServer(configure.getIp(), configure.getHttpPort(),
                             options.getConnectionTimeout(), workerGroup, httpSessionManager));
                 }
@@ -438,7 +482,9 @@ public class ArthasBootstrap {
             for (CommandResolver resolver : resolvers) {
                 shellServer.registerCommandResolver(resolver);
             }
-
+            /*
+             * 启动注册在shellServer中的TermServer列表，根据配置情况注册为：HttpTelnetTermServer/HttpTermServer
+             */
             shellServer.listen(new BindHandler(isBindRef));
             if (!isBind()) {
                 throw new IllegalStateException("Arthas failed to bind telnet or http port! Telnet port: "
@@ -458,9 +504,13 @@ public class ArthasBootstrap {
             if (configure.getStatUrl() != null) {
                 logger().info("arthas stat url: {}", configure.getStatUrl());
             }
+            /*
+            提供一个url配置 ，用户的命令历史等数据汇报到服务器上，方便统一管理。 相当与采集所有的操作的命令历史， 汇总到一个url上。
+            我们可以通过stat-url进行配置。 见casehttps://github.com/alibaba/arthas/issues/848
+             */
             UserStatUtil.setStatUrl(configure.getStatUrl());
             UserStatUtil.arthasStart();
-
+            // 标识SPY已经初始化完成
             try {
                 SpyAPI.init();
             } catch (Throwable e) {

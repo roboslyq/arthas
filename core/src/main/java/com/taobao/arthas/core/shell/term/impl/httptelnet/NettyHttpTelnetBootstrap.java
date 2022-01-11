@@ -56,18 +56,26 @@ public class NettyHttpTelnetBootstrap extends TelnetBootstrap {
 
     }
 
+    /**
+     * 启动arthas-server服务
+     * @param handlerFactory ： TelnetTtyConnection
+     * @param factory
+     * @param doneHandler
+     */
     public void start(final Supplier<TelnetHandler> handlerFactory, final Consumer<TtyConnection> factory,
                     final Consumer<Throwable> doneHandler) {
         ServerBootstrap boostrap = new ServerBootstrap();
+        // 设置工作组等相关参数
         boostrap.group(group).channel(NioServerSocketChannel.class).option(ChannelOption.SO_BACKLOG, 100)
                         .handler(new LoggingHandler(LogLevel.INFO))
                         .childHandler(new ChannelInitializer<SocketChannel>() {
                             @Override
                             public void initChannel(SocketChannel ch) throws Exception {
+                                /*  关键方法，添加了ProtocolDetectHandler，同时支持Http 和telnet协议 */
                                 ch.pipeline().addLast(new ProtocolDetectHandler(channelGroup, handlerFactory, factory, workerGroup, httpSessionManager));
                             }
                         });
-
+        // 绑定监听端口
         boostrap.bind(getHost(), getPort()).addListener(new GenericFutureListener<Future<? super Void>>() {
             @Override
             public void operationComplete(Future<? super Void> future) throws Exception {

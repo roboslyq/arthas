@@ -14,6 +14,14 @@ import io.termd.core.util.CompletableFuture;
 import io.termd.core.util.Helper;
 
 /**
+ * 在telport端口，同时支持http协议和telnet协议
+ * 实现原理是通过ProtocolDetectHandler实现。
+ * ProtocolDetectHandler是ChannelInboundHandlerAdapter的一个子类，tcp消息发送过来时会触发channelRead函数
+ * 知道http协议中，第一行时请求头，由于arthas所有对外提供的请求都是GET请求，
+ * 所以我们只需要判断第一个请求的前3个字节是否是GET，如果非GET的情况下将ProtocolDetectHandler替换为TelnetChannelHandler，
+ * 后续的处理逻辑全按照telnet协议处理。
+ * 如果是GET情况下将ProtocolDetectHandler替换为Http相关的handler。
+ * 总的一句话就是判断第一个应用层消息包前三个字节是否是GET。
  * @author <a href="mailto:julien@julienviet.com">Julien Viet</a>
  * @author hengyunabc 2019-11-05
  */
@@ -86,8 +94,14 @@ public class NettyHttpTelnetTtyBootstrap {
         this.charset = charset;
     }
 
+    /**
+     * 启动arthas-server服务
+     * @param factory
+     * @return
+     */
     public CompletableFuture<?> start(Consumer<TtyConnection> factory) {
         CompletableFuture<?> fut = new CompletableFuture();
+        // 启动arthas-server服务
         start(factory, Helper.startedHandler(fut));
         return fut;
     }
@@ -98,6 +112,11 @@ public class NettyHttpTelnetTtyBootstrap {
         return fut;
     }
 
+    /**
+     * 启动arthas-server服务
+     * @param factory
+     * @param doneHandler
+     */
     public void start(final Consumer<TtyConnection> factory, Consumer<Throwable> doneHandler) {
         httpTelnetTtyBootstrap.start(new Supplier<TelnetHandler>() {
             @Override
