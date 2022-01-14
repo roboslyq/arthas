@@ -84,6 +84,13 @@ public class HttpApiHandler {
         }
     }
 
+    /**
+     * 处理Http请求指令
+     * @param ctx
+     * @param request
+     * @return
+     * @throws Exception
+     */
     public HttpResponse handle(ChannelHandlerContext ctx, FullHttpRequest request) throws Exception {
 
         ApiResponse result;
@@ -95,6 +102,7 @@ public class HttpApiHandler {
                 requestBody = getBody(request);
                 ApiRequest apiRequest = parseRequest(requestBody);
                 requestId = apiRequest.getRequestId();
+                /*  关键方法：处理Http请求指令 */
                 result = processRequest(ctx, apiRequest);
             } else {
                 result = createResponse(ApiState.REFUSED, "Unsupported http method: " + method.name());
@@ -194,6 +202,12 @@ public class HttpApiHandler {
         }
     }
 
+    /**
+     * 处理Http 请求指令
+     * @param ctx
+     * @param apiRequest
+     * @return
+     */
     private ApiResponse processRequest(ChannelHandlerContext ctx, ApiRequest apiRequest) {
 
         String actionStr = apiRequest.getAction();
@@ -245,7 +259,7 @@ public class HttpApiHandler {
                 }
             }
 
-            //dispatch requests
+            //dispatch requests：关切方法--》处理http请求
             ApiResponse response = dispatchRequest(action, apiRequest, session);
             if (response != null) {
                 return response;
@@ -264,7 +278,7 @@ public class HttpApiHandler {
 
     private ApiResponse dispatchRequest(ApiAction action, ApiRequest apiRequest, Session session) throws ApiException {
         switch (action) {
-            case EXEC:
+            case EXEC: // 同步指令
                 return processExecRequest(apiRequest, session);
             case ASYNC_EXEC:
                 return processAsyncExecRequest(apiRequest, session);
@@ -376,7 +390,7 @@ public class HttpApiHandler {
 
     /**
      * Execute command sync, wait for job finish or timeout, sending results immediately
-     *
+     * 同步指令
      * @param apiRequest
      * @param session
      * @return
@@ -417,10 +431,11 @@ public class HttpApiHandler {
                 packingResultDistributor = new PackingResultDistributorImpl(session);
                 //distribute result message both to origin session channel and request channel by CompositeResultDistributor
                 //ResultDistributor resultDistributor = new CompositeResultDistributorImpl(packingResultDistributor, session.getResultDistributor());
+                // 创建指令Job
                 job = this.createJob(commandLine, session, packingResultDistributor);
                 session.setForegroundJob(job);
                 updateSessionInputStatus(session, InputStatus.ALLOW_INTERRUPT);
-
+                // 启动Job,默认是JobImpl
                 job.run();
 
             } catch (Throwable e) {
@@ -438,6 +453,7 @@ public class HttpApiHandler {
             if (timeout == null || timeout <= 0) {
                 timeout = DEFAULT_EXEC_TIMEOUT;
             }
+            // 同步等待指定执行完成
             boolean timeExpired = !waitForJob(job, timeout);
             if (timeExpired) {
                 logger.warn("Job is exceeded time limit, force interrupt it, jobId: {}", job.id());

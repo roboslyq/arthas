@@ -164,6 +164,7 @@ public class AgentBootstrap {
                 @Override
                 public void run() {
                     try {
+                        /* 核心方法，arthas-agent在在目标JVM 完成绑定 */
                         bind(inst, agentLoader, agentArgs);
                     } catch (Throwable throwable) {
                         throwable.printStackTrace(ps);
@@ -187,6 +188,13 @@ public class AgentBootstrap {
         }
     }
 
+    /**
+     * 在目标JVM完成绑定
+     * @param inst
+     * @param agentLoader
+     * @param args
+     * @throws Throwable
+     */
     private static void bind(Instrumentation inst, ClassLoader agentLoader, String args) throws Throwable {
         /**
          * <pre>
@@ -194,6 +202,7 @@ public class AgentBootstrap {
          * </pre>
          */
         Class<?> bootstrapClass = agentLoader.loadClass(ARTHAS_BOOTSTRAP);
+        /* 关键方法：调用 ArthasBootstrap.getInstance(inst)*/
         Object bootstrap = bootstrapClass.getMethod(GET_INSTANCE, Instrumentation.class, String.class).invoke(null, inst, args);
         boolean isBind = (Boolean) bootstrapClass.getMethod(IS_BIND).invoke(bootstrap);
         if (!isBind) {

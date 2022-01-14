@@ -56,7 +56,6 @@ public class HttpTelnetTermServer extends TermServer {
     @Override
     public TermServer listen(Handler<Future<TermServer>> listenHandler) {
         // TODO: charset and inputrc from options
-        //        启动服务(同时支持http 与telnet 协议): 关键是ProtocolDetectHandler
         bootstrap = new NettyHttpTelnetTtyBootstrap(workerGroup, httpSessionManager).setHost(hostIp).setPort(port);
         try {
             // 启动服务

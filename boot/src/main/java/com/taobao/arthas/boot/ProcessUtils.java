@@ -230,6 +230,11 @@ public class ProcessUtils {
         return FOUND_JAVA_HOME;
     }
 
+    /**
+     * 需
+     * @param targetPid 要attach的目标进程Pid
+     * @param attachArgs 参数
+     */
     public static void startArthasCore(long targetPid, List<String> attachArgs) {
         // find java/java.exe, then try to find tools.jar
         String javaHome = findJavaHome();

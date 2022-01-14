@@ -28,7 +28,7 @@ import io.termd.core.telnet.netty.TelnetChannelHandler;
 import io.termd.core.tty.TtyConnection;
 
 /**
- * 
+ * arthas-server的指令接收入口，实现了netty的ChannelInboundHandlerAdapter
  * @author hengyunabc 2019-11-04
  *
  */
@@ -108,6 +108,9 @@ public class ProtocolDetectHandler extends ChannelInboundHandlerAdapter {
             ctx.fireChannelActive();
         }
         pipeline.remove(this);
+        // 关键方法：触发数据读，关键触发
+        // telnet协议：TelnetChannelHandler#channelRead0
+        // http协议：HttpRequestHandler#channelRead0
         ctx.fireChannelRead(in);
     }
 

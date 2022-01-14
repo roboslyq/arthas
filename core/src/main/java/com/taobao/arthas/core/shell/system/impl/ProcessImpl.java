@@ -316,6 +316,10 @@ public class ProcessImpl implements Process {
         run(true);
     }
 
+    /**
+     * 执行指令
+     * @param fg
+     */
     @Override
     public synchronized void run(boolean fg) {
         if (processStatus != ExecStatus.READY) {
@@ -368,6 +372,7 @@ public class ProcessImpl implements Process {
             process.echoTips("cache location  : " + cacheLocation() + "\n");
         }
         Runnable task = new CommandProcessTask(process);
+        // 执行指令
         ArthasBootstrap.getInstance().execute(task);
     }
 
@@ -379,9 +384,13 @@ public class ProcessImpl implements Process {
             this.process = process;
         }
 
+        /**
+         * 执行指令
+         */
         @Override
         public void run() {
             try {
+                // 此处Handler是processHandler
                 handler.handle(process);
             } catch (Throwable t) {
                 logger.error("Error during processing the command:", t);

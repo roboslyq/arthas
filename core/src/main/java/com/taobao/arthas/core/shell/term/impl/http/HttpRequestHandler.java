@@ -57,6 +57,12 @@ public class HttpRequestHandler extends SimpleChannelInboundHandler<FullHttpRequ
         this.httpApiHandler = ArthasBootstrap.getInstance().getHttpApiHandler();
     }
 
+    /**
+     * 接收http协议数据
+     * @param ctx
+     * @param request
+     * @throws Exception
+     */
     @Override
     protected void channelRead0(ChannelHandlerContext ctx, FullHttpRequest request) throws Exception {
         String path = new URI(request.uri()).getPath();
@@ -77,6 +83,7 @@ public class HttpRequestHandler extends SimpleChannelInboundHandler<FullHttpRequ
             try {
                 //handle http restful api
                 if ("/api".equals(path)) {
+                    /** 关键方法，处理请求指令 */
                     response = httpApiHandler.handle(ctx, request);
                     isHttpApiResponse = true;
                 }

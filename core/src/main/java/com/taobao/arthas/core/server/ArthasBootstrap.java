@@ -140,6 +140,7 @@ public class ArthasBootstrap {
 
         // 1. initSpy() 初始化Spy
         initSpy();
+
         // 2. ArthasEnvironment
         initArthasEnvironment(args);
 
@@ -155,6 +156,7 @@ public class ArthasBootstrap {
 
         // 4. 增强ClassLoader
         enhanceClassLoader();
+
         // 5. init beans
         initBeans();
 
@@ -408,14 +410,15 @@ public class ArthasBootstrap {
         }
 
         try {
+            /* 初始化shell服务 */
             ShellServerOptions options = new ShellServerOptions()
                             .setInstrumentation(instrumentation)
                             .setPid(PidUtils.currentLongPid())
-                            .setWelcomeMessage(ArthasBanner.welcome());
+                            .setWelcomeMessage(ArthasBanner.welcome()); // 打印连接时的Banner图标
             if (configure.getSessionTimeout() != null) {
                 options.setSessionTimeout(configure.getSessionTimeout() * 1000);
             }
-
+            // http会话管理
             this.httpSessionManager = new HttpSessionManager();
             // 安全认证
             /*
@@ -470,9 +473,8 @@ public class ArthasBootstrap {
                 // listen local address in VM communication
                 if (configure.getTunnelServer() != null) {
                     /*
-                    TelnetTermServer  仅支持telnet的term server，最终在NettyTelnetBootstrap中会使用netty启动server，
-                     使用TelnetChannelHandler进行消息的处理，现在arthas已经不使用这个server，使用HttpTelnetTermServer代替。
-                     */
+                    * 如果tunnelServer不为空，监听本地地址local
+                    *  */
                     shellServer.registerTermServer(new HttpTermServer(configure.getIp(), configure.getHttpPort(),
                             options.getConnectionTimeout(), workerGroup, httpSessionManager));
                 }
@@ -483,7 +485,7 @@ public class ArthasBootstrap {
                 shellServer.registerCommandResolver(resolver);
             }
             /*
-             * 启动注册在shellServer中的TermServer列表，根据配置情况注册为：HttpTelnetTermServer/HttpTermServer
+             * 关键方法：启动注册在shellServer中的TermServer列表，根据配置情况注册为：HttpTelnetTermServer/HttpTermServer
              */
             shellServer.listen(new BindHandler(isBindRef));
             if (!isBind()) {
@@ -597,7 +599,7 @@ public class ArthasBootstrap {
     }
 
     /**
-     * 单例
+     * 单例: 在arthas-agent bind时被反射调用
      *
      * @param instrumentation JVM增强
      * @return ArthasServer单例

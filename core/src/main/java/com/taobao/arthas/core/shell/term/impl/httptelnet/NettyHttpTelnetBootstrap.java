@@ -57,7 +57,8 @@ public class NettyHttpTelnetBootstrap extends TelnetBootstrap {
     }
 
     /**
-     * 启动arthas-server服务
+     * 启动arthas-server服务，到此arthas-server启动基本完成！！！
+     * 接下来接收具体指令和处理指令，入口就在ProtocolDetectHandler中
      * @param handlerFactory ： TelnetTtyConnection
      * @param factory
      * @param doneHandler
@@ -71,7 +72,7 @@ public class NettyHttpTelnetBootstrap extends TelnetBootstrap {
                         .childHandler(new ChannelInitializer<SocketChannel>() {
                             @Override
                             public void initChannel(SocketChannel ch) throws Exception {
-                                /*  关键方法，添加了ProtocolDetectHandler，同时支持Http 和telnet协议 */
+                                /*  关键方法： 给pipeline管道设置ProtocolDetectHandler处理器，同时支持Http 和telnet协议 */
                                 ch.pipeline().addLast(new ProtocolDetectHandler(channelGroup, handlerFactory, factory, workerGroup, httpSessionManager));
                             }
                         });

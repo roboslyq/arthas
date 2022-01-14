@@ -70,15 +70,21 @@ public class AnnotatedCommandImpl extends Command {
         return cli;
     }
 
+    /**
+     * 执行指令
+     * @param process
+     */
     private void process(CommandProcess process) {
         AnnotatedCommand instance;
         try {
+            // 获取具体指令的类并且实例化，例如EchoCommand
             instance = clazz.newInstance();
         } catch (Exception e) {
             process.end();
             return;
         }
         CLIConfigurator.inject(process.commandLine(), instance);
+        // 调用指令处理器，例如：EchoCommand.process(process)
         instance.process(process);
         UserStatUtil.arthasUsageSuccess(name(), process.args());
     }
@@ -105,6 +111,9 @@ public class AnnotatedCommandImpl extends Command {
         }
     }
 
+    /**
+     * 执行指令
+     */
     private class ProcessHandler implements Handler<CommandProcess> {
         @Override
         public void handle(CommandProcess process) {

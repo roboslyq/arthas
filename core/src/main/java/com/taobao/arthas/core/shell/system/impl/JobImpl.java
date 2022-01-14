@@ -203,6 +203,11 @@ public class JobImpl implements Job {
         return run(!runInBackground.get());
     }
 
+    /**
+     * 执行指令
+     * @param foreground
+     * @return
+     */
     @Override
     public Job run(boolean foreground) {
 //        if (foreground && foregroundUpdatedHandler != null) {
@@ -216,6 +221,7 @@ public class JobImpl implements Job {
         //set process's tty in JobControllerImpl.createCommandProcess
         //process.setTty(shell.term());
         process.setSession(this.session);
+        // 关键方法，执行指令
         process.run(foreground);
 
 //        if (!foreground && foregroundUpdatedHandler != null) {

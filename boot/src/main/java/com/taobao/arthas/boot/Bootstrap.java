@@ -336,6 +336,7 @@ public class Bootstrap {
         if (bootstrap.isVerbose()) {
             AnsiLog.level(Level.ALL);
         }
+        // 如果启动命令后面有-h，则表示是帮忙，直接打印帮助信息然后直接结束进程
         if (bootstrap.isHelp()) {
             System.out.println(usage(cli));
             System.exit(0);
@@ -354,7 +355,7 @@ public class Bootstrap {
             System.out.println(UsageRender.render(listVersions()));
             System.exit(0);
         }
-
+        // java6和java7仅支持http，不支持telnet
         if (JavaVersionUtils.isJava6() || JavaVersionUtils.isJava7()) {
             bootstrap.setuseHttp(true);
             AnsiLog.debug("Java version is {}, only support http, set useHttp to true.",
@@ -398,8 +399,10 @@ public class Bootstrap {
         if (httpPortPid > 0 && pid != httpPortPid) {
             AnsiLog.error("Target process {} is not the process using port {}, you will connect to an unexpected process.",
                     pid, bootstrap.getHttpPortOrDefault());
+            // 解决方案一：选attach到之前的JVM进程，然后使用stop命令关闭arthas服务。然后再重启动arthas再attach到新JVM即可
             AnsiLog.error("1. Try to restart arthas-boot, select process {}, shutdown it first with running the 'stop' command.",
                     httpPortPid);
+            // 解决方案二：可以通过 --telnet-port 9998 和 --http-port 9999 参数指定另一个监听端口即可
             AnsiLog.error("2. Or try to use different http port, for example: java -jar arthas-boot.jar --telnet-port 9998 --http-port 9999", httpPortPid);
             System.exit(1);
         }
@@ -424,6 +427,7 @@ public class Bootstrap {
         }
 
         // Try set the directory where arthas-boot.jar is located to arhtas home
+        // 如果用户目录权限检查失败或者文件联网下载失败等各种原因导致目录未创建，就检测当前arthas-boot.jar所在的目录是否包含相关的Jar包(因为用户很有可能下载一个完全包，解压之后里面有所有依赖Jar包)
         if (arthasHomeDir == null) {
             CodeSource codeSource = Bootstrap.class.getProtectionDomain().getCodeSource();
             if (codeSource != null) {
@@ -582,7 +586,9 @@ public class Bootstrap {
 
             AnsiLog.info("Try to attach process " + pid);
             AnsiLog.debug("Start arthas-core.jar args: " + attachArgs);
-            // 开始调用 arthas-core.jar处理，启动新的进程（启动arthas 服务端，即attach到目标进程JVM端）
+            /**
+             *  核心流程：开始调用 arthas-core.jar处理，启动新的进程（启动arthas 服务端，即attach到目标进程JVM端）
+             */
             ProcessUtils.startArthasCore(pid, attachArgs);
 
             AnsiLog.info("Attach process {} success.", pid);
